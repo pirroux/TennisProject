@@ -1,8 +1,10 @@
-/images/
-/videos/
-/.idea/
-/src/output/
-/*.docx
-/report/
-/dataset/
+.python-version
+images/
+videos/
+.idea/
+src/output/
+*.docx
+report/
+dataset/
 *.pth
+__pycache__/
