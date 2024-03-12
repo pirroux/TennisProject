@@ -53,10 +53,11 @@ class BallDetector:
         script_directory = os.path.dirname(os.path.abspath(__file__))
         weights_path = os.path.join(script_directory, model_saved_state)
 
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        #self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
         # Load TrackNet model weights
         self.detector = BallTrackerNet(out_channels=out_channels)
-        saved_state_dict = torch.load(weights_path)
+        saved_state_dict = torch.load(weights_path, map_location=torch.device(self.device))
         self.detector.load_state_dict(saved_state_dict['model_state'])
         self.detector.eval().to(self.device)
 

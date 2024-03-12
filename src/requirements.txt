@@ -6,5 +6,5 @@ pandas
 torch
 scipy
 scikit-image
-opencv_python
 opencv-python-headless
+filterpy
