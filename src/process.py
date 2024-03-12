@@ -7,6 +7,8 @@ import pandas as pd
 from scipy import signal
 from scipy.interpolate import interp1d
 from scipy.signal import find_peaks
+from pickle import load
+
 
 import sys
 sys.path.append('/content/TennisProject/src')
@@ -404,7 +406,7 @@ def create_top_view(court_detector, detection_model, ball_detector, fps='30', vi
     smoothed_1, smoothed_2 = detection_model.calculate_feet_positions(court_detector)
     ball_positions = ball_detector.calculate_ball_positions()       ## ---------------------xav----------------------------------
     ball_position_top_view = ball_detector.calculate_ball_position_top_view(court_detector)  #---------------------------------xav--------------------
-    ball_position_top_view_resize = data_resize_ball_minimap(ball_position_top_view, video_height)  #-----------xav-------------
+    # ball_position_top_view_resize = data_resize_ball_minimap(ball_position_top_view, video_height)  #-----------xav-------------
 
     for feet_pos_1, feet_pos_2, ball_pos in zip(smoothed_1, smoothed_2, ball_position_top_view):
         frame = court.copy()
@@ -464,6 +466,11 @@ def video_process(video_path, show_video=False, include_video=True,
 
     # time counter
     total_time = 0
+    ##-----------------------------xav-----------------------------------------------------
+    last = time.time() # start counting
+    coords = []
+    t = []
+    ##---------------------------------------fin xav---------------------------------------
 
     # Loop over all frames in the videos
     while True:
@@ -514,7 +521,7 @@ def video_process(video_path, show_video=False, include_video=True,
         for _ in range(3):
             x, y = ball_detector.diff_xy(coords)
             ball_detector.remove_outliers(x, y, coords)
-            coords = interpolation(coords)
+            coords = ball_detector.interpolation(coords)
         # velocty
         Vx = []
         Vy = []
