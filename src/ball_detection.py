@@ -43,6 +43,62 @@ def combine_three_frames(frame1, frame2, frame3, width, height):
     imgs = np.rollaxis(imgs, 2, 0)
     return np.array(imgs)
 
+##------------------------------------xav------------------------------------------------------------
+def from_2d_array_to_nested(
+    X, index=None, columns=None, time_index=None, cells_as_numpy=False
+):
+    """Convert 2D dataframe to nested dataframe.
+
+    Convert tabular pandas DataFrame with only primitives in cells into
+    nested pandas DataFrame with a single column.
+
+    Parameters
+    ----------
+    X : pd.DataFrame
+
+    cells_as_numpy : bool, default = False
+        If True, then nested cells contain NumPy array
+        If False, then nested cells contain pandas Series
+
+    index : array-like, shape=[n_samples], optional (default = None)
+        Sample (row) index of transformed DataFrame
+
+    time_index : array-like, shape=[n_obs], optional (default = None)
+        Time series index of transformed DataFrame
+
+    Returns
+    -------
+    Xt : pd.DataFrame
+        Transformed DataFrame in nested format
+    """
+    if (time_index is not None) and cells_as_numpy:
+        raise ValueError(
+            "`Time_index` cannot be specified when `return_arrays` is True, "
+            "time index can only be set to "
+            "pandas Series"
+        )
+    if isinstance(X, pd.DataFrame):
+        X = X.to_numpy()
+
+    container = np.array if cells_as_numpy else pd.Series
+
+    # for 2d numpy array, rows represent instances, columns represent time points
+    n_instances, n_timepoints = X.shape
+
+    if time_index is None:
+        time_index = np.arange(n_timepoints)
+    kwargs = {"index": time_index}
+
+    Xt = pd.DataFrame(
+        pd.Series([container(X[i, :], **kwargs) for i in range(n_instances)])
+    )
+    if index is not None:
+        Xt.index = index
+    if columns is not None:
+        Xt.columns = columns
+    return Xt
+##------------------------------------------fin xav--------------------------------------------------
+
 
 class BallDetector:
     """
@@ -159,6 +215,60 @@ class BallDetector:
             ball_court_pos = cv2.perspectiveTransform(ball_pos, inv_mats[i]).reshape(-1)
             xy_coordinates_top_view.append(ball_court_pos)
         return xy_coordinates_top_view
+    #---------------------------------------------------------fin xav----------------------------------------------
+    #---------------------------------------------------------xav--------------------------------------------------
+    def diff_xy(coords):
+        coords = coords.copy()
+        diff_list = []
+        for i in range(0, len(coords)-1):
+            if coords[i] is not None and coords[i+1] is not None:
+                point1 = coords[i]
+                point2 = coords[i+1]
+                diff = [abs(point2[0] - point1[0]), abs(point2[1] - point1[1])]
+                diff_list.append(diff)
+            else:
+                diff_list.append(None)
+
+        xx, yy = np.array([x[0] if x is not None else np.nan for x in diff_list]), np.array([x[1] if x is not None else np.nan for x in diff_list])
+
+        return xx, yy
+
+    def remove_outliers(x, y, coords):
+        ids = set(np.where(x > 50)[0]) & set(np.where(y > 50)[0])
+        for id in ids:
+            left, middle, right = coords[id-1], coords[id], coords[id+1]
+            if left is None:
+                left = [0]
+            if  right is None:
+                right = [0]
+            if middle is None:
+                    middle = [0]
+            MAX = max(map(list, (left, middle, right)))
+            if MAX == [0]:
+                pass
+            else:
+                try:
+                    coords[coords.index(tuple(MAX))] = None
+                except ValueError:
+                    coords[coords.index(MAX)] = None
+
+    def diff_xy(coords):
+        coords = coords.copy()
+        diff_list = []
+        for i in range(0, len(coords)-1):
+            if coords[i] is not None and coords[i+1] is not None:
+                point1 = coords[i]
+                point2 = coords[i+1]
+                diff = [abs(point2[0] - point1[0]), abs(point2[1] - point1[1])]
+                diff_list.append(diff)
+            else:
+                diff_list.append(None)
+
+        xx, yy = np.array([x[0] if x is not None else np.nan for x in diff_list]), np.array([x[1] if x is not None else np.nan for x in diff_list])
+
+        return xx, yy
+
+
     #---------------------------------------------------------fin xav----------------------------------------------
 
 

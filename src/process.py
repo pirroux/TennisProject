@@ -3,6 +3,7 @@ import time
 
 import cv2
 import numpy as np
+import pandas as pd
 from scipy import signal
 from scipy.interpolate import interp1d
 from scipy.signal import find_peaks
@@ -13,7 +14,7 @@ sys.path.append('/content/TennisProject/src')
 from detection import DetectionModel, center_of_box
 from pose import PoseExtractor
 from smooth import Smooth
-from ball_detection import BallDetector
+from ball_detection import BallDetector, from_2d_array_to_nested
 from my_statistics import Statistics
 from stroke_recognition import ActionRecognition
 from utils import get_video_properties, get_dtype, get_stickman_line_connection
@@ -388,7 +389,7 @@ def add_data_to_video(input_video, court_detector, players_detector, ball_detect
     cv2.destroyAllWindows()
     return last_frame_distance_player1, last_frame_distance_player2
 
-def create_top_view(court_detector, detection_model, ball_detector, fps='30'):
+def create_top_view(court_detector, detection_model, ball_detector, fps='30', video_height='720'):
     """
     Creates top view video of the gameplay
     """
@@ -403,6 +404,7 @@ def create_top_view(court_detector, detection_model, ball_detector, fps='30'):
     smoothed_1, smoothed_2 = detection_model.calculate_feet_positions(court_detector)
     ball_positions = ball_detector.calculate_ball_positions()       ## ---------------------xav----------------------------------
     ball_position_top_view = ball_detector.calculate_ball_position_top_view(court_detector)  #---------------------------------xav--------------------
+    ball_position_top_view_resize = data_resize_ball_minimap(ball_position_top_view, video_height)  #-----------xav-------------
 
     for feet_pos_1, feet_pos_2, ball_pos in zip(smoothed_1, smoothed_2, ball_position_top_view):
         frame = court.copy()
@@ -415,10 +417,18 @@ def create_top_view(court_detector, detection_model, ball_detector, fps='30'):
     out.release()
     cv2.destroyAllWindows()
 
+    ##--------------------------------------------------xav--------------------------------------------------
+    '''
+def data_resize_ball_minimap(ball_position_top_view, video_height):
+    final_position
+    return final_position
+    '''
+    ##----------------------------------------------fin xav--------------------------------------------------
+
 def video_process(video_path, show_video=False, include_video=True,
                   stickman=True, stickman_box=True, court=True,
                   output_file='output', output_folder='output',
-                  smoothing=True, top_view=True):
+                  smoothing=True, top_view=True, bounce=False):
     """
     Takes videos of one person as input, and calculate the body pose and face landmarks, and saves them as csv files.
     Also, output a result videos with the keypoints marked.
@@ -495,7 +505,97 @@ def video_process(video_path, show_video=False, include_video=True,
     detection_model.find_player_2_box()
 
     if top_view:
-        create_top_view(court_detector, detection_model, ball_detector, fps=fps)
+        create_top_view(court_detector, detection_model, ball_detector, fps=fps, video_height=v_height)
+
+##-------------------------------------------xav--------------------------------------------------------------
+    # bounce detection
+    if bounce:
+        coords=ball_detector.calculate_ball_positions()
+        for _ in range(3):
+            x, y = ball_detector.diff_xy(coords)
+            ball_detector.remove_outliers(x, y, coords)
+            coords = interpolation(coords)
+        # velocty
+        Vx = []
+        Vy = []
+        V = []
+        frames = [*range(len(coords))]
+
+        for i in range(len(coords)-1):
+            p1 = coords[i]
+            p2 = coords[i+1]
+            t1 = t[i]
+            t2 = t[i+1]
+            x = (p1[0]-p2[0])/(t1-t2)
+            y = (p1[1]-p2[1])/(t1-t2)
+            Vx.append(x)
+            Vy.append(y)
+
+        for i in range(len(Vx)):
+            vx = Vx[i]
+            vy = Vy[i]
+            v = (vx**2+vy**2)**0.5
+            V.append(v)
+
+        xy = coords[:]
+
+
+        # Predicting Bounces
+        test_df = pd.DataFrame({'x': [coord[0] for coord in xy[:-1]], 'y':[coord[1] for coord in xy[:-1]], 'V': V})
+
+
+        # output_csv_file = 'test_df.csv'                                               ## c moi
+
+        # Écrivez le DataFrame dans le fichier CSV
+        # test_df.to_csv(output_csv_file, index=False)
+
+
+        # df.shift
+        for i in range(20, 0, -1):
+            test_df[f'lagX_{i}'] = test_df['x'].shift(i, fill_value=0)
+        for i in range(20, 0, -1):
+            test_df[f'lagY_{i}'] = test_df['y'].shift(i, fill_value=0)
+        for i in range(20, 0, -1):
+            test_df[f'lagV_{i}'] = test_df['V'].shift(i, fill_value=0)
+
+        # test_df.drop(['x', 'y', 'V'], 1, inplace=True)
+
+        Xs = test_df[['lagX_20', 'lagX_19', 'lagX_18', 'lagX_17', 'lagX_16',
+                'lagX_15', 'lagX_14', 'lagX_13', 'lagX_12', 'lagX_11', 'lagX_10',
+                'lagX_9', 'lagX_8', 'lagX_7', 'lagX_6', 'lagX_5', 'lagX_4', 'lagX_3',
+                'lagX_2', 'lagX_1']]
+        Xs = from_2d_array_to_nested(Xs.to_numpy())
+
+        # dfXs = pd.DataFrame(Xs)
+        # output_Xs = 'test_Xs.csv'                                               ## c moi
+
+        # Écrivez le DataFrame dans le fichier CSV
+        # dfXs.to_csv(output_Xs, index=False)
+
+        Ys = test_df[['lagY_20', 'lagY_19', 'lagY_18', 'lagY_17',
+                'lagY_16', 'lagY_15', 'lagY_14', 'lagY_13', 'lagY_12', 'lagY_11',
+                'lagY_10', 'lagY_9', 'lagY_8', 'lagY_7', 'lagY_6', 'lagY_5', 'lagY_4',
+                'lagY_3', 'lagY_2', 'lagY_1']]
+        Ys = from_2d_array_to_nested(Ys.to_numpy())
+
+        Vs = test_df[['lagV_20', 'lagV_19', 'lagV_18',
+                'lagV_17', 'lagV_16', 'lagV_15', 'lagV_14', 'lagV_13', 'lagV_12',
+                'lagV_11', 'lagV_10', 'lagV_9', 'lagV_8', 'lagV_7', 'lagV_6', 'lagV_5',
+                'lagV_4', 'lagV_3', 'lagV_2', 'lagV_1']]
+        Vs = from_2d_array_to_nested(Vs.to_numpy())
+
+        X = pd.concat([Xs, Ys, Vs], 1)
+        # pd.DataFrame(X).to_CSV('test_X', index=False)
+
+        # load the pre-trained classifier
+        clf = load(open('clf.pkl', 'rb'))
+
+        predcted = clf.predict(X)
+        idx = list(np.where(predcted == 1)[0])
+        idx = np.array(idx) - 10
+
+        pd.DataFrame(idx).to_CSV('test_idx.csv', index=False)
+##---------------------------------------------fin xav-----------------------------------------------------------
 
     # Save landmarks in csv files
     df = None
@@ -559,7 +659,7 @@ def video_process(video_path, show_video=False, include_video=True,
 def main():
     s = time.time()
     result_json = video_process(video_path='/content/TennisProject/src/arnaldi-alcaraz-25fps.mp4', show_video=False, stickman=True, stickman_box=False, smoothing=True,
-                  court=True, top_view=True)
+                  court=True, top_view=True, bounce=True)
     print(f'Total computation time : {time.time() - s} seconds')
 
 
