@@ -27,7 +27,7 @@ class Trainer:
     """
     def __init__(self, model, train_dl, valid_dl, lr=0.001, reg=0.003):
         # Using cuda if possible
-        self.dtype = get_dtype()
+        self.dtype, self.device = get_dtype()
 
         # Model
         self.model = model
@@ -190,7 +190,7 @@ def train_thetis():
     Training the model using THETIS dataset
     """
 
-    dtype = get_dtype()
+    dtype, device = get_dtype()
     batch_size = 1
 
     train_ds, valid_ds, test_ds = create_train_valid_test_datasets('../dataset/THETIS/VIDEO_RGB/THETIS_data.csv',
@@ -215,7 +215,7 @@ def train_strokes():
     """
     Training the model using Strokes dataset
     """
-    dtype = get_dtype()
+    dtype, device = get_dtype()
     batch_size = 1
     root_dir = '../dataset/my_dataset/patches/'
     train_ds = StrokesDataset(csv_file='../dataset/my_dataset/patches/train_labels.csv', root_dir=root_dir,
@@ -240,7 +240,7 @@ def get_confusion_matrix(model_saved_state, dl=None):
     """
     Calculate confusion matrix for the saved model state
     """
-    dtype = get_dtype()
+    dtype, device = get_dtype()
     LSTM = LSTM_model(3, dtype=dtype)
     saved_state = torch.load('saved states/' + model_saved_state, map_location='cpu')
     LSTM.load_state_dict(saved_state['model_state'])

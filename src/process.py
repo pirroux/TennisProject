@@ -415,7 +415,7 @@ def video_process(video_path, show_video=False, include_video=True,
     :param smoothing: bool, use smoothing on output data (default = True)
     :return: None
     """
-    dtype = get_dtype()
+    dtype, device = get_dtype()
 
     # initialize extractors
     court_detector = CourtDetector()
@@ -447,7 +447,7 @@ def video_process(video_path, show_video=False, include_video=True,
                 court_detector.detect(frame)
                 print(f'Court detection {"Success" if court_detector.success_flag else "Failed"}')
                 court_detection_time = time.time() - start_time
-                print(f'Time to detect court :  {court_detection_time} seconds')
+                print(f'Time to detect court :  {court_detection_time:.1f} seconds')
                 start_time = time.time()
 
             court_detector.track_court(frame)
@@ -497,12 +497,13 @@ def video_process(video_path, show_video=False, include_video=True,
         ball_detector.xy_coordinates,
         df_smooth)
 
-    '''ball_detector.bounces_indices = bounces_indices
-    ball_detector.coordinates = (f2_x, f2_y)'''
+    #ball_detector.bounces_indices = bounces_indices
+    #ball_detector.coordinates = (f2_x, f2_y)
     predictions, prediction_list = get_stroke_predictions(video_path, stroke_recognition,
                                          player_1_strokes_indices, detection_model.player_1_boxes)
 
     statistics = Statistics(court_detector, detection_model)
+    # Here displaying the heatmap
     heatmap = statistics.get_player_position_heatmap()
     statistics.display_heatmap(heatmap, court_detector.court_reference.court, title='Heatmap')
     statistics.get_players_dists()
@@ -512,6 +513,7 @@ def video_process(video_path, show_video=False, include_video=True,
                       statistics=statistics,
                       show_video=show_video, with_frame=1, output_folder=output_folder, output_file=output_file,
                       p1=player_1_strokes_indices, p2=player_2_strokes_indices, f_x=f2_x, f_y=f2_y)
+    # print players & ball y coordinates vs frame #
     ball_detector.show_y_graph(detection_model.player_1_boxes, detection_model.player_2_boxes)
     print(f'Last frame distance player 1 : {last_frame_distance_p1} m')
     print(f'Last frame distance player 2 : {last_frame_distance_p2} m')
@@ -545,4 +547,4 @@ def main(video_path):
     return result_json
 
 if __name__ == "__main__":
-    main()
+    main("data/video_crop_rublev.mp4")

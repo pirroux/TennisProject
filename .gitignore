@@ -1,6 +1,7 @@
 .python-version
 images/
 videos/
+data/
 .idea/
 src/output/
 *.docx

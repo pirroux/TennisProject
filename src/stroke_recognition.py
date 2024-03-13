@@ -70,7 +70,7 @@ class ActionRecognition:
     Stroke recognition model
     """
     def __init__(self, model_saved_state, max_seq_len=55):
-        self.dtype = get_dtype()
+        self.dtype, self.device = get_dtype()
         self.feature_extractor = FeatureExtractor()
         self.feature_extractor.eval()
         self.feature_extractor.type(self.dtype)
@@ -162,7 +162,7 @@ def create_features_from_vids():
     Use feature extractor model to create features for each video in the stroke dataset
     """
 
-    dtype = get_dtype()
+    dtype, device = get_dtype()
     feature_extractor = FeatureExtractor()
     feature_extractor.eval()
     feature_extractor.type(dtype)

@@ -167,7 +167,7 @@ class BallDetector:
         plt.ylabel('Y-Index Position')
         plt.title('Ball and Players Y-Index Positions Over Frames')
         plt.legend()
-        plt.show()
+        plt.savefig("positions_over_frames.jpg")
 
 
 if __name__ == "__main__":
@@ -212,4 +212,4 @@ if __name__ == "__main__":
     a = np.diff(peaks)
     plt.plot(positions)
     plt.plot(peaks, positions[peaks], "x")
-    plt.show()
+    plt.savefig("positions_over_frames.jpg")

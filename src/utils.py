@@ -16,14 +16,14 @@ def crop_center(image):
 
 
 def get_dtype():
-    dev = 'cuda' if torch.cuda.is_available() else 'cpu'
+    dev = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     device = torch.device(dev)
     if dev == 'cuda':
         dtype = torch.cuda.FloatTensor
     else:
         dtype = torch.FloatTensor
     print(f'Using device {device}')
-    return dtype
+    return dtype, dev
 
 
 def get_video_properties(video):
