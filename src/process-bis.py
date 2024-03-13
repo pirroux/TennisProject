@@ -16,7 +16,7 @@ sys.path.append('/content/TennisProject/src')
 from detection import DetectionModel, center_of_box
 from pose import PoseExtractor
 from smooth import Smooth
-from ball_detection import BallDetector, from_2d_array_to_nested
+from ball_detection_bie import BallDetector, from_2d_array_to_nested
 from my_statistics import Statistics
 from stroke_recognition import ActionRecognition
 from utils import get_video_properties, get_dtype, get_stickman_line_connection
@@ -528,18 +528,16 @@ def video_process(video_path, show_video=False, include_video=True,
             else:
                 coords.append(None)
 
-        print(coords)
-        pd.DataFrame(coords).to_csv('test_coords.csv', index=False)
+        ## pd.DataFrame(coords).to_csv('test_coords.csv', index=False)
         for _ in range(3):
             x, y = ball_detector.diff_xy(coords)
-            ## ball_detector.remove_outliers(x, y, coords)
+            ball_detector.remove_outliers(x, y, coords)
             coords = ball_detector.interpolation(coords)
         # velocty
         Vx = []
         Vy = []
         V = []
         frames = [*range(len(coords))]
-
 
         for i in range(len(coords)-1):
             p1 = coords[i]
@@ -564,10 +562,10 @@ def video_process(video_path, show_video=False, include_video=True,
         test_df = pd.DataFrame({'x': [coord[0] for coord in xy[:-1]], 'y':[coord[1] for coord in xy[:-1]], 'V': V})
 
 
-        output_csv_file = 'test_df.csv'                                               ## c moi
+        # output_csv_file = 'test_df.csv'                                               ## c moi
 
         # Écrivez le DataFrame dans le fichier CSV
-        test_df.to_csv(output_csv_file, index=False)
+        # test_df.to_csv(output_csv_file, index=False)
 
 
         # df.shift
@@ -586,11 +584,11 @@ def video_process(video_path, show_video=False, include_video=True,
                 'lagX_2', 'lagX_1']]
         Xs = from_2d_array_to_nested(Xs.to_numpy())
 
-        dfXs = pd.DataFrame(Xs)
-        output_Xs = 'test_Xs.csv'                                               ## c moi
+        # dfXs = pd.DataFrame(Xs)
+        # output_Xs = 'test_Xs.csv'                                               ## c moi
 
         # Écrivez le DataFrame dans le fichier CSV
-        dfXs.to_csv(output_Xs, index=False)
+        # dfXs.to_csv(output_Xs, index=False)
 
         Ys = test_df[['lagY_20', 'lagY_19', 'lagY_18', 'lagY_17',
                 'lagY_16', 'lagY_15', 'lagY_14', 'lagY_13', 'lagY_12', 'lagY_11',
@@ -604,13 +602,8 @@ def video_process(video_path, show_video=False, include_video=True,
                 'lagV_4', 'lagV_3', 'lagV_2', 'lagV_1']]
         Vs = from_2d_array_to_nested(Vs.to_numpy())
 
-        pd.DataFrame(Vs).to_csv('test_Vs.csv', index=False)
         X = pd.concat([Xs, Ys, Vs], 1)
-
-        # X = X.iloc[2:]
-
-
-        pd.DataFrame(X).to_csv('test_X', index=False)
+        # pd.DataFrame(X).to_CSV('test_X', index=False)
 
         # load the pre-trained classifier
         clf = load(open('clf.pkl', 'rb'))

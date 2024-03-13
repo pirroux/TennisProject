@@ -98,23 +98,6 @@ def from_2d_array_to_nested(
     if columns is not None:
         Xt.columns = columns
     return Xt
-
-def nan_helper(y):
-    """Helper to handle indices and logical indices of NaNs.
-
-    Input:
-        - y, 1d numpy array with possible NaNs
-    Output:
-        - nans, logical indices of NaNs
-        - index, a function, with signature indices= index(logical_indices),
-          to convert logical indices of NaNs to 'equivalent' indices
-    Example:
-        >>> # linear interpolation of NaNs
-        >>> nans, x= nan_helper(y)
-        >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
-    """
-    return np.isnan(y), lambda z: z.nonzero()[0]
-
 ##------------------------------------------fin xav--------------------------------------------------
 
 
@@ -252,43 +235,23 @@ class BallDetector:
         return xx, yy
 
     def remove_outliers(self, x, y, coords):
-        # Filtrer les valeurs None de x et y
-        x_filtered = [val for val in x if val is not None]
-        y_filtered = [val for val in y if val is not None]
-
-        # Vérifier si x_filtered et y_filtered ne sont pas vides
-        if x_filtered and y_filtered:
-            # Comparer avec 50
-            ids = set(np.where(np.array(x_filtered) > 50)[0]) & set(np.where(np.array(y_filtered) > 50)[0])
-
-            # Rétablir les indices dans la liste complète coords
-            for id in ids:
-                # L'indice dans x_filtered et y_filtered
-                id_global = x.index(x_filtered[id])
-
-                # Récupérer les valeurs des voisins
-                left = coords[id_global-1] if id_global > 0 else None
-                middle = coords[id_global]
-                right = coords[id_global+1] if id_global < len(coords)-1 else None
-
-                # Traitement des valeurs None
-                if left is None:
-                    left = [0]
-                if right is None:
-                    right = [0]
-                if middle is None:
+        ids = set(np.where(x > 50)[0]) & set(np.where(y > 50)[0])
+        for id in ids:
+            left, middle, right = coords[id-1], coords[id], coords[id+1]
+            if left is None:
+                left = [0]
+            if  right is None:
+                right = [0]
+            if middle is None:
                     middle = [0]
-
-                # Trouver la valeur maximale entre left, middle et right
-                MAX = max(map(list, (left, middle, right)))
-
-                # Mettre à None la coordonnée maximale dans coords
-                if MAX != [0]:
-                    try:
-                        coords[coords.index(tuple(MAX))] = None
-                    except ValueError:
-                        coords[coords.index(MAX)] = None
-
+            MAX = max(map(list, (left, middle, right)))
+            if MAX == [0]:
+                pass
+            else:
+                try:
+                    coords[coords.index(tuple(MAX))] = None
+                except ValueError:
+                    coords[coords.index(MAX)] = None
 
     def interpolation(self, coords):
         coords =coords.copy()
@@ -297,15 +260,30 @@ class BallDetector:
         xxx = np.array(x) # x coords
         yyy = np.array(y) # y coords
 
-        nons, yy = nan_helper(xxx)
+        nons, yy = BallDetector.nan_helper(xxx)
         xxx[nons]= np.interp(yy(nons), yy(~nons), xxx[~nons])
-        nans, xx = nan_helper(yyy)
+        nans, xx = BallDetector.nan_helper(yyy)
         yyy[nans]= np.interp(xx(nans), xx(~nans), yyy[~nans])
 
         newCoords = [*zip(xxx,yyy)]
 
         return newCoords
 
+    def nan_helper(self, y):
+        """Helper to handle indices and logical indices of NaNs.
+
+        Input:
+            - y, 1d numpy array with possible NaNs
+        Output:
+            - nans, logical indices of NaNs
+            - index, a function, with signature indices= index(logical_indices),
+            to convert logical indices of NaNs to 'equivalent' indices
+        Example:
+            >>> # linear interpolation of NaNs
+            >>> nans, x= nan_helper(y)
+            >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+        """
+        return np.isnan(y), lambda z: z.nonzero()[0]
 
 
     #---------------------------------------------------------fin xav----------------------------------------------
