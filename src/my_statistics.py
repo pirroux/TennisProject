@@ -26,49 +26,51 @@ class Statistics:
         court_width = self.court_tracker.court_reference.court_total_width
         court_height = self.court_tracker.court_reference.court_total_height
         heatmap_shape = (court_height // pit_size, court_width // pit_size)
-        heatmap = np.zeros(heatmap_shape)
-        for x, y in self.feet_bottom:
-            x = int(x)
-            y = int(y)
-            heatmap[min(heatmap_shape[0] - 1,y // pit_size), min(heatmap_shape[1] - 1,x // pit_size)] += 1
-        for x, y in self.feet_top:
-            x = int(x)
-            y = int(y)
-            heatmap[min(heatmap_shape[0] - 1,y // pit_size), min(heatmap_shape[1] - 1,x // pit_size)] += 1
+
+        # Combine the positions of both players
+        positions = np.vstack((self.feet_bottom, self.feet_top))
+
+        # Calculate the 2D histogram
+        heatmap, _, _ = np.histogram2d(
+            positions[:, 1],  # y-coordinates
+            positions[:, 0],  # x-coordinates
+            bins=heatmap_shape,
+            range=[[0, court_height], [0, court_width]]
+        )
 
         return heatmap
 
-    def display_heatmap(self, heatmap, image=None, cmap=plt.cm.bwr, title=''):
+    def display_heatmap(self, heatmap, image=None, title=''):
         """
         Display the heatmap on top of an image
         """
 
         if image is not None:
             h, w = image.shape
+            heatmap = cv2.resize(heatmap, (w, h))
+            image = cv2.resize(image, (500, 500))
 
-            heatmap = imutils.resize(heatmap, w, h)
-            heatmap = heatmap[:h, :w]
-            image = imutils.resize(image, 500)
+        heatmap = cv2.resize(heatmap, (500, 500))
 
-        heatmap = imutils.resize(heatmap, 500)
-
-        fig = plt.figure(figsize=(5,10))
-        # Define the canvas as 1*1 division, and draw on the first position
-        ax = fig.add_subplot()
-
-        # Draw and select the color fill style of the heat map, select hot here
+        fig, ax = plt.subplots(figsize=(5,10))
 
         if image is not None:
-            im2 = ax.imshow(image, cmap='gray')
-            pass
-        im = ax.imshow(heatmap, alpha=0.5, cmap=cmap)
+            ax.imshow(image, cmap='gray')
+
+        # Change the color map to binary and set the background to white
+        cmap = plt.cm.binary
+        cmap.set_under(color='white')  # Set background color to white
+        im = ax.imshow(heatmap, alpha=0.5, cmap=cmap, vmin=0.01)  # vmin just above 0 to "hide" 0 values in the heatmap
+
         plt.title(title)
-        # Add the color scale bar on the right
-        # plt.colorbar(im)
-        # Add title
+
+        # Set the color of the lines to black
+        ax.grid(color='black')
 
         plt.setp(ax, xticks=[], yticks=[])
-        # show
+        print('saving new heatmap colors')
+        plt.savefig('heatmap.png', dpi=300)
+
         plt.show()
 
     def get_players_dists(self):
@@ -79,10 +81,8 @@ class Statistics:
         bottom_dist, bottom_dists_array = calculate_feet_dist(self.feet_bottom)
         heatmap = self.get_player_position_heatmap(pit_size=10)
         heatmap[heatmap > 0] = 255
-        heatmap = cv2.cvtColor(np.uint8(heatmap), cv2.COLOR_GRAY2BGR)
-        heatmap[:, :, 1:] = 0
 
-        self.display_heatmap(heatmap, self.court_tracker.court_reference.court, cmap=None, title='Players path')
+        self.display_heatmap(heatmap, self.court_tracker.court_reference.court, title='Players path')
         print('Top player distance is: {:.2f} m'.format(top_dist / 100))
         print('Bottom player distance is: {:.2f} m'.format(bottom_dist / 100))
 

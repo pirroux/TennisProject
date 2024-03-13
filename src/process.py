@@ -273,8 +273,8 @@ def add_data_to_video(input_video, court_detector, players_detector, ball_detect
     final_width = width * 2 if with_frame == 2 else width
 
     # Video writer
-    out = cv2.VideoWriter(os.path.join(output_folder, output_file + '.avi'),
-                          cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps, (final_width, height))
+    out = cv2.VideoWriter(os.path.join(output_folder, output_file + '.mp4'),
+                          cv2.VideoWriter_fourcc(*'mp4v'), fps, (final_width, height))
 
     # initialize frame counters
     frame_number = 0
@@ -383,14 +383,14 @@ def create_top_view(court_detector, detection_model, ball_detector):
                           cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (v_width, v_height))
     # players and ball location on court
     smoothed_1, smoothed_2 = detection_model.calculate_feet_positions(court_detector)
-    ball_positions = ball_detector.calculate_ball_positions()
+    ball_positions = ball_detector.calculate_ball_position()
 
     for feet_pos_1, feet_pos_2, ball_pos in zip(smoothed_1, smoothed_2, ball_positions):
         frame = court.copy()
         frame = cv2.circle(frame, (int(feet_pos_1[0]), int(feet_pos_1[1])), 10, (255, 105, 180), 15)
         if feet_pos_2[0] is not None:
             frame = cv2.circle(frame, (int(feet_pos_2[0]), int(feet_pos_2[1])), 10, (255, 105, 180), 15)
-        if ball_pos[0] is not None:
+        if isinstance(ball_pos, (list, tuple)) and ball_pos[0] is not None:
             frame = cv2.circle(frame, (int(ball_pos[0]), int(ball_pos[1])), 10, (0, 255, 255), 15)
         out.write(frame)
     out.release()
@@ -422,7 +422,7 @@ def video_process(video_path, show_video=False, include_video=True,
     detection_model = DetectionModel(dtype=dtype)
     pose_extractor = PoseExtractor(person_num=1, box=stickman_box, dtype=dtype) if stickman else None
     stroke_recognition = ActionRecognition('storke_classifier_weights.pth')
-    ball_detector = BallDetector('/content/TennisProject/src/saved states/tracknet_weights_2_classes.pth', out_channels=2)
+    ball_detector = BallDetector('saved states/tracknet_weights_2_classes.pth', out_channels=2)
 
     # Load videos from videos path
     video = cv2.VideoCapture(video_path)
@@ -512,7 +512,7 @@ def video_process(video_path, show_video=False, include_video=True,
                       statistics=statistics,
                       show_video=show_video, with_frame=1, output_folder=output_folder, output_file=output_file,
                       p1=player_1_strokes_indices, p2=player_2_strokes_indices, f_x=f2_x, f_y=f2_y)
-    ball_detector.show_y_graph(detection_model.player_1_boxes, detection_model.player_2_boxes)
+    #ball_detector.show_y_graph(detection_model.player_1_boxes, detection_model.player_2_boxes)
     print(f'Last frame distance player 1 : {last_frame_distance_p1} m')
     print(f'Last frame distance player 2 : {last_frame_distance_p2} m')
 
@@ -531,7 +531,9 @@ def video_process(video_path, show_video=False, include_video=True,
         'stroke': prediction_list,
         'stroke_counts': stroke_counts,
         'court_detection_time': round(court_detection_time, 1),
-        'court_accuracy': round(court_accuracy, 1)
+        'court_accuracy': round(court_accuracy, 1),
+        'frames_analyzed': frame_i,
+        'total_processing_time': round(total_time, 1)
     }
 
     print(dico)
@@ -539,7 +541,7 @@ def video_process(video_path, show_video=False, include_video=True,
 
 def main():
     s = time.time()
-    result_json = video_process(video_path='/content/TennisProject/src/tsitsi_long.mp4', show_video=False, stickman=True, stickman_box=False, smoothing=True,
+    result_json = video_process(video_path='/content/TennisProject/src/video_crop_rublev.mp4', show_video=False, stickman=True, stickman_box=False, smoothing=True,
                   court=True, top_view=True)
     print(f'Total computation time : {time.time() - s} seconds')
 

@@ -51,7 +51,7 @@ class BallDetector:
     def __init__(self, model_saved_state, out_channels=2):
         # Construct absolute path to the weights file
         script_directory = os.path.dirname(os.path.abspath(__file__))
-        weights_path = os.path.join(script_directory, '..', 'saved states', model_saved_state)
+        weights_path = os.path.join(script_directory, model_saved_state)
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         # Load TrackNet model weights
@@ -143,31 +143,74 @@ class BallDetector:
             frame = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
         return frame
 
-    def calculate_ball_positions(self):
-        return self.xy_coordinates
+    def calculate_ball_position(self):
+        """
+        Calculate the ball's position based on the current, last, and before last frames.
+        """
+        if self.last_frame is None:
+            return None, None
 
-    def show_y_graph(self, player_1_boxes, player_2_boxes):
+        # combine the frames into 1 input tensor
+        frames = combine_three_frames(self.current_frame, self.before_last_frame, self.last_frame,
+                                    self.model_input_width, self.model_input_height)
+        frames = (torch.from_numpy(frames) / 255).to(self.device)
+        # Inference (forward pass)
+        x, y = self.detector.inference(frames)
+        if x is not None:
+            # Rescale the indices to fit frame dimensions
+            x = x * (self.video_width / self.model_input_width)
+            y = y * (self.video_height / self.model_input_height)
 
-        player_1_centers = np.array([center_of_box(box) for box in player_1_boxes])
-        player_1_y_values = player_1_centers[:, 1] - np.array([(box[3] - box[1]) // 4 for box in player_1_boxes])
+            # Check distance from previous location and remove outliers
+            if self.xy_coordinates[-1][0] is not None:
+                if np.linalg.norm(np.array([x,y]) - self.xy_coordinates[-1]) > self.threshold_dist:
+                    x, y = None, None
+        return x, y
 
-        player_2_centers = np.array([center_of_box(box) if box[0] is not None else [None, None] for box in player_2_boxes])
-        player_2_y_values = player_2_centers[:, 1]
+def show_y_graph(self, player_1_boxes, player_2_boxes):
 
-        y_values = self.xy_coordinates[:, 1].copy()
-        x_values = self.xy_coordinates[:, 0].copy()
+    player_1_centers = np.array([center_of_box(box) for box in player_1_boxes])
+    player_1_y_values = player_1_centers[:, 1] - np.array([(box[3] - box[1]) // 4 for box in player_1_boxes])
 
-        plt.figure()
-        plt.scatter(range(len(y_values)), y_values, marker='o', label='Ball', color='blue')
-        plt.plot(range(len(player_1_y_values)), player_1_y_values, color='r', marker='o', linestyle='-', label='Player 1')
-        plt.plot(range(len(player_2_y_values)), player_2_y_values, color='g', marker='o', linestyle='-', label='Player 2')
+    player_2_centers = np.array([center_of_box(box) if box[0] is not None else [None, None] for box in player_2_boxes])
+    player_2_y_values = player_2_centers[:, 1]
 
-        plt.xlabel('Frame Index')
-        plt.ylabel('Y-Index Position')
-        plt.title('Ball and Players Y-Index Positions Over Frames')
-        plt.legend()
-        plt.show()
+    y_values = self.xy_coordinates[:, 1].copy()
+    x_values = self.xy_coordinates[:, 0].copy()
 
+    # Replace None values with 0
+    y_values = np.where(y_values == None, 0, y_values)
+
+    # Calculate the slope of y_values at each frame
+    y_slope = np.gradient(y_values)
+
+    # Create a mask for y_slope values within the range -30 to 30
+    y_slope_mask = (y_slope >= -30) & (y_slope <= 30)
+
+    # Create a mask for ball values between player 1 and player 2 values
+    ball_mask = (y_values >= np.minimum(player_1_y_values, player_2_y_values)) & (y_values <= np.maximum(player_1_y_values, player_2_y_values))
+
+    plt.figure()
+    plt.plot(range(len(player_1_y_values)), player_1_y_values, color='r', marker='o', linestyle='-', label='Player 1')
+    plt.plot(range(len(player_2_y_values)), player_2_y_values, color='g', marker='o', linestyle='-', label='Player 2')
+
+    # Plot y_slope values within the range -30 to 30
+    plt.scatter(np.arange(len(y_slope))[y_slope_mask], y_slope[y_slope_mask], marker='x', label='Ball Slope', color='purple')
+
+    # Plot ball values between player 1 and player 2 values
+    plt.scatter(np.arange(len(y_values))[ball_mask], y_values[ball_mask], marker='o', label='Ball', color='blue')
+
+    plt.xlabel('Frame Index')
+    plt.ylabel('Y-Index Position')
+    plt.title('Ball and Players Y-Index Positions Over Frames')
+    plt.legend()
+
+    # Save the figure
+    print('Saving figure_y_coord.png')
+    plt.savefig('figure_y_coord.png')
+
+    plt.show()
+    pass
 
 if __name__ == "__main__":
     ball_detector = BallDetector('saved states/tracknet_weights_lr_1.0_epochs_150_last_trained.pth')
