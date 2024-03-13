@@ -1,18 +1,20 @@
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import StreamingResponse
-from fastapi.responses import JSONResponse
-from process import main
+from fastapi import FastAPI, File, UploadFile, BackgroundTasks
+from starlette.responses import FileResponse
+from typing import Dict
 import cv2
-from PIL import Image
-import io
 import tempfile
+import zipfile
+import json
 import os
-import uuid
-import subprocess
-from flask import Flask, send_file, jsonify, request
-import base64
+import shutil
+
+from process import main
 
 app = FastAPI()
+
+def cleanup_temp_dir(dir_path: str):
+    #shutil.rmtree(dir_path)
+    pass
 
 @app.get("/")
 def root():
@@ -27,21 +29,39 @@ def predict(minimap=0, bounce=0, input_video_name=None, ouput_video_name=None):
 
 
 @app.post("/savefile")
-async def convert_video_to_bw_frame(file: UploadFile = File(...)):
+async def convert_video_and_return_with_json(background_tasks: BackgroundTasks, file: UploadFile = File(...)) -> FileResponse:
+    # Create a temporary directory to store the files
+    temp_dir = tempfile.mkdtemp()
+    print(temp_dir)
 
-    #save the file in video input directory
-    video_name = f"{uuid.uuid4()}.mp4"
-    #save_directory = "/apivideos/"
-    #video_path = os.path.join(save_directory, video_name)
-    with open(video_name, "wb") as buffer:
-        contents = await file.read()
-        buffer.write(contents)
+    try:
+        input_path = os.path.join(temp_dir, "input_video.mp4")
+        output_path = "output/output.mp4"
+        json_path = "metadata.json"
+        pof_path = "positions_over_frames.jpg"
+        zip_path = os.path.join(temp_dir, "result.zip")
 
-    #launchin main python file from api
-    result_json = main(video_name)
+        # Save uploaded video to a file
+        with open(input_path, "wb") as temp_file:
+            temp_file.write(await file.read())
 
-    video_output_path = 'output/output.avi'
-    with open(video_output_path, 'rb') as file:
-        video = base64.b64encode(file.read()).decode('utf-8')
-    # return the main json response
-    return {'video': video, 'result_json': result_json}
+        json_result = main(input_path)
+
+        with open("metadata.json", "w") as json_file:
+            json.dump(json_result, json_file)
+
+        # Zip the output video and JSON file
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            zipf.write(output_path, arcname="output_video.mp4")
+            zipf.write(json_path, arcname="metadata.json")
+            zipf.write(pof_path, arcname="positions_over_frames.jpg")
+
+        # Schedule cleanup of the temp directory to run in the background
+        background_tasks.add_task(cleanup_temp_dir, temp_dir)
+
+        # Return the ZIP file
+        return FileResponse(zip_path, filename="result.zip", media_type='application/zip')
+
+    except Exception as e:
+        background_tasks.add_task(cleanup_temp_dir, temp_dir)
+        return {"error": str(e)}
