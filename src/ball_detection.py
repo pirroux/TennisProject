@@ -212,7 +212,7 @@ class BallDetector:
                 ball_pos = np.array([100.25, 100.89]).reshape((1, 1, 2))
             else:
                 ball_pos = np.array([pos[0], pos[1]]).reshape((1, 1, 2))
-            print(ball_pos)     ## -------------------------xav-----------------------------
+ #           print(ball_pos)     ## -------------------------xav-----------------------------
             ball_court_pos = cv2.perspectiveTransform(ball_pos, inv_mats[i]).reshape(-1)
             xy_coordinates_top_view.append(ball_court_pos)
         return xy_coordinates_top_view
@@ -228,7 +228,7 @@ class BallDetector:
                 diff = [abs(point2[0] - point1[0]), abs(point2[1] - point1[1])]
                 diff_list.append(diff)
             else:
-                diff_list.append(None)
+                diff_list.append([None, None])
 
         xx, yy = np.array([x[0] if x is not None else np.nan for x in diff_list]), np.array([x[1] if x is not None else np.nan for x in diff_list])
 

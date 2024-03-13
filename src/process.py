@@ -491,7 +491,9 @@ def video_process(video_path, show_video=False, include_video=True,
             # detect
             detection_model.detect_player_1(frame.copy(), court_detector)
             detection_model.detect_top_persons(frame, court_detector, frame_i)
-
+#-----------------------------------------xav--------------------------------------------------
+            t.append(time.time()-last)
+#------------------------------------------fin xav---------------------------------------------
             # Create stick man figure (pose detection)
             if stickman:
                 pose_extractor.extract_pose(frame, detection_model.player_1_boxes)
@@ -518,6 +520,7 @@ def video_process(video_path, show_video=False, include_video=True,
     # bounce detection
     if bounce:
         coords=ball_detector.calculate_ball_positions()
+        pd.DataFrame(coords).to_csv('test_coords.csv', index=False)
         for _ in range(3):
             x, y = ball_detector.diff_xy(coords)
             ball_detector.remove_outliers(x, y, coords)
