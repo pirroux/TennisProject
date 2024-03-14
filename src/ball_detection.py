@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
 from scipy import signal
 from scipy.signal import find_peaks
+from scipy.signal import argrelextrema
 
 
 from ball_tracker_net import BallTrackerNet
@@ -44,7 +45,7 @@ def combine_three_frames(frame1, frame2, frame3, width, height):
     imgs = np.rollaxis(imgs, 2, 0)
     return np.array(imgs)
 
-##------------------------------------xav------------------------------------------------------------
+##-----------------------------------------------xav-----------------------------------
 def from_2d_array_to_nested(
     X, index=None, columns=None, time_index=None, cells_as_numpy=False
 ):
@@ -114,6 +115,104 @@ def nan_helper(y):
         >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
     """
     return np.isnan(y), lambda z: z.nonzero()[0]
+
+def find_bounce():
+    data = pd.read_csv("test_df.csv", usecols=["y"])
+    y_values = np.array(data[:])
+    print("------------------------")
+    #print(y_values)
+
+    ##-------------------lissage ball coordinate-------------------------
+    y_values = y_values.flatten()
+    series = pd.Series(y_values)
+    print("-----------------------------")
+    #print(series)
+    print("------------------------------------")
+
+    # Apply exponential smoothing with smoothing factor alpha
+    alpha = 0.2  # Adjust the value of alpha as needed
+    smoothed_values = series.ewm(alpha=alpha).mean()
+
+    # Convert the smoothed values back to a numpy array
+    y_values = smoothed_values.values
+    #print(y_values)
+    ##----------------------fin lissage--------------------
+
+    y = np.array(y_values, dtype=float)
+
+    # Initialize an array of NaNs for the second derivative
+    first_derivative = np.full(y.shape, np.nan)
+    second_derivative = np.full(y.shape, np.nan)
+
+    # Compute the first and second derivatives using central difference, skipping NaN values
+    #delta_t = (1/30)
+    for i in range(1, len(y)):
+        if not np.isnan(y[i-1]) and not np.isnan(y[i]):
+            first_derivative[i] = (y[i] - y[i-1])
+
+    for i in range(1, len(first_derivative)):
+            if not np.isnan(first_derivative[i-1]) and not np.isnan(first_derivative[i]):
+                second_derivative[i] = (first_derivative[i] - first_derivative[i-1]) / 0.2
+
+
+  #      for i in range(len(first_derivative)):
+  #          print(i, first_derivative[i])
+
+   #     for i in range(len(second_derivative)):
+   #         print(i, second_derivative[i])
+
+
+    plt.xlabel('Frame Index')
+    plt.ylabel('Y-Index Position')
+    plt.title('Ball and Players Y-Index Positions Over Frames')
+    plt.legend()
+    plt.savefig("positions_over_frames.jpg")
+
+    plt.figure()
+    plt.scatter(range(len(y_values)), [((y/10)-10) if y is not None else 0 for y in y_values], marker='o', label='Ball', color='blue')
+    plt.plot(range(len(y_values)), first_derivative, label='1st deriv', color='r')
+    plt.plot(range(len(y_values)), second_derivative, label='2nd deriv', color='g')
+    plt.xlabel('Frame Index')
+    plt.ylabel('derivatives')
+    plt.title('ball, first derivative and second derivative over frame')
+    plt.legend()
+    plt.savefig("derivative_over_frames.jpg")
+
+
+    ##-------------------------lissage derive premiere---------------------------------------------
+    first_derivative = first_derivative.flatten()
+    series = pd.Series(first_derivative)
+    #print("-----------------------------")
+    #print(series)
+    #print("------------------------------------")
+
+    # Apply exponential smoothing with smoothing factor alpha
+    alpha = 0.2  # Adjust the value of alpha as needed
+    smoothed_values = series.ewm(alpha=alpha).mean()
+
+    # Convert the smoothed values back to a numpy array
+    first_derivative = smoothed_values.values
+    #print(y_values)
+    ##---------------------------fin lissage----------------------------------------
+
+    #for i in range(1, len(first_derivative) - 1):
+    #    if not np.isnan(first_derivative[i-1]) and not np.isnan(first_derivative[i]) and not np.isnan(first_derivative[i+1]):
+    #        second_derivative[i] = (first_derivative[i+1] - 2*first_derivative[i] + first_derivative[i-1])
+
+    ##-----------------------maximums locaux---------------------------
+    y_values = np.array(first_derivative)
+
+    # Trouver les indices des maximums locaux
+    local_max_indices = argrelextrema(y_values, np.greater)
+
+    # Les maximums locaux correspondants aux indices trouvés
+    local_max_values = y_values[local_max_indices]
+
+    print("Indices des maximums locaux :", local_max_indices)
+    print("Valeurs des maximums locaux :", local_max_values)
+
+    return local_max_indices
+    ##------------------------fin max locaux---------------------------
 
 ##------------------------------------------fin xav--------------------------------------------------
 
@@ -310,7 +409,6 @@ class BallDetector:
 
     #---------------------------------------------------------fin xav----------------------------------------------
 
-
     def show_y_graph(self, player_1_boxes, player_2_boxes):
 
         player_1_centers = np.array([center_of_box(box) for box in player_1_boxes])
@@ -327,11 +425,12 @@ class BallDetector:
         plt.plot(range(len(player_1_y_values)), player_1_y_values, color='r', marker='o', linestyle='-', label='Player 1')
         plt.plot(range(len(player_2_y_values)), player_2_y_values, color='g', marker='o', linestyle='-', label='Player 2')
 
-        plt.xlabel('Frame Index')
-        plt.ylabel('Y-Index Position')
-        plt.title('Ball and Players Y-Index Positions Over Frames')
-        plt.legend()
-        plt.show()
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

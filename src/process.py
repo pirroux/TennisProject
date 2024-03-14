@@ -16,7 +16,7 @@ sys.path.append('/content/TennisProject/src')
 from detection import DetectionModel, center_of_box
 from pose import PoseExtractor
 from smooth import Smooth
-from ball_detection import BallDetector, from_2d_array_to_nested
+from ball_detection import BallDetector, from_2d_array_to_nested, find_bounce
 from my_statistics import Statistics
 from stroke_recognition import ActionRecognition
 from utils import get_video_properties, get_dtype, get_stickman_line_connection
@@ -391,7 +391,7 @@ def add_data_to_video(input_video, court_detector, players_detector, ball_detect
     cv2.destroyAllWindows()
     return last_frame_distance_player1, last_frame_distance_player2
 
-def create_top_view(court_detector, detection_model, ball_detector, fps='30', video_height='720'):
+def create_top_view(court_detector, detection_model, ball_detector, fps='30', video_height='720', bounce=[0,0]):
     """
     Creates top view video of the gameplay
     """
@@ -405,9 +405,18 @@ def create_top_view(court_detector, detection_model, ball_detector, fps='30', vi
     # players and ball location on court
     smoothed_1, smoothed_2 = detection_model.calculate_feet_positions(court_detector)
     ball_positions = ball_detector.calculate_ball_positions()       ## ---------------------xav----------------------------------
-    ball_position_top_view = ball_detector.calculate_ball_position_top_view(court_detector)  #---------------------------------xav--------------------
+    print(ball_positions)
+    print("----------------------------------------------")
+    ball_position_top_view = ball_detector.calculate_ball_position_top_view(court_detector)  #-------------xav--------------------
+    print(ball_position_top_view)
+    #bounce_position_top_view =
     # ball_position_top_view_resize = data_resize_ball_minimap(ball_position_top_view, video_height)  #-----------xav-------------
-
+    i=0
+    tout=[]
+    liste_bounce = bounce[0].tolist()
+    print("888888888888888888888888888888")
+    print(bounce)
+    print(liste_bounce)
     for feet_pos_1, feet_pos_2, ball_pos in zip(smoothed_1, smoothed_2, ball_position_top_view):
         frame = court.copy()
         frame = cv2.circle(frame, (int(feet_pos_1[0]), int(feet_pos_1[1])), 10, (255, 105, 180), 15)
@@ -415,7 +424,15 @@ def create_top_view(court_detector, detection_model, ball_detector, fps='30', vi
             frame = cv2.circle(frame, (int(feet_pos_2[0]), int(feet_pos_2[1])), 10, (255, 105, 180), 15)
         if ball_pos[0] is not None:
             frame = cv2.circle(frame, (int(ball_pos[0]), int(ball_pos[1])), 10, (0, 255, 255), 15)
+        if i in liste_bounce:
+            frame = cv2.circle(frame, (int(ball_pos[0]), int(ball_pos[1])), 50, (0, 255, 255), 70)
+            print("++++++++++++++")
+            print(int(ball_pos[0]), int(ball_pos[1]))
+            print("++++++++++++++")
         out.write(frame)
+        tout.append(i)
+        i+=1
+    print(tout)
     out.release()
     cv2.destroyAllWindows()
 
@@ -513,8 +530,6 @@ def video_process(video_path, show_video=False, include_video=True,
 
     detection_model.find_player_2_box()
 
-    if top_view:
-        create_top_view(court_detector, detection_model, ball_detector, fps=fps, video_height=v_height)
 
 ##-------------------------------------------xav--------------------------------------------------------------
     # bounce detection
@@ -528,18 +543,16 @@ def video_process(video_path, show_video=False, include_video=True,
             else:
                 coords.append(None)
 
-        print(coords)
-        pd.DataFrame(coords).to_csv('test_coords.csv', index=False)
+        ## pd.DataFrame(coords).to_csv('test_coords.csv', index=False)
         for _ in range(3):
             x, y = ball_detector.diff_xy(coords)
-            ## ball_detector.remove_outliers(x, y, coords)
+        #    ball_detector.remove_outliers(x, y, coords)
             coords = ball_detector.interpolation(coords)
         # velocty
         Vx = []
         Vy = []
         V = []
         frames = [*range(len(coords))]
-
 
         for i in range(len(coords)-1):
             p1 = coords[i]
@@ -586,11 +599,11 @@ def video_process(video_path, show_video=False, include_video=True,
                 'lagX_2', 'lagX_1']]
         Xs = from_2d_array_to_nested(Xs.to_numpy())
 
-        dfXs = pd.DataFrame(Xs)
-        output_Xs = 'test_Xs.csv'                                               ## c moi
+        # dfXs = pd.DataFrame(Xs)
+        # output_Xs = 'test_Xs.csv'                                               ## c moi
 
         # Écrivez le DataFrame dans le fichier CSV
-        dfXs.to_csv(output_Xs, index=False)
+        # dfXs.to_csv(output_Xs, index=False)
 
         Ys = test_df[['lagY_20', 'lagY_19', 'lagY_18', 'lagY_17',
                 'lagY_16', 'lagY_15', 'lagY_14', 'lagY_13', 'lagY_12', 'lagY_11',
@@ -604,22 +617,17 @@ def video_process(video_path, show_video=False, include_video=True,
                 'lagV_4', 'lagV_3', 'lagV_2', 'lagV_1']]
         Vs = from_2d_array_to_nested(Vs.to_numpy())
 
-        pd.DataFrame(Vs).to_csv('test_Vs.csv', index=False)
         X = pd.concat([Xs, Ys, Vs], 1)
-
-        # X = X.iloc[2:]
-
-
-        pd.DataFrame(X).to_csv('test_X', index=False)
+        # pd.DataFrame(X).to_CSV('test_X', index=False)
 
         # load the pre-trained classifier
-        clf = load(open('clf.pkl', 'rb'))
+ #       clf = load(open('clf.pkl', 'rb'))
 
-        predcted = clf.predict(X)
-        idx = list(np.where(predcted == 1)[0])
-        idx = np.array(idx) - 10
+#      predcted = clf.predict(X)
+#        idx = list(np.where(predcted == 1)[0])
+#        idx = np.array(idx) - 10
 
-        pd.DataFrame(idx).to_CSV('test_idx.csv', index=False)
+#        pd.DataFrame(idx).to_CSV('test_idx.csv', index=False)
 ##---------------------------------------------fin xav-----------------------------------------------------------
 
     # Save landmarks in csv files
@@ -651,12 +659,19 @@ def video_process(video_path, show_video=False, include_video=True,
     statistics.display_heatmap(heatmap, court_detector.court_reference.court, title='Heatmap')
     statistics.get_players_dists()
 
+    bounce_indices = find_bounce()
+    print(f'voici les indices des rebonds : {bounce_indices}')
+    if top_view:
+        create_top_view(court_detector, detection_model, ball_detector, fps=fps, video_height=v_height, bounce=bounce_indices)
+
     last_frame_distance_p1, last_frame_distance_p2 = add_data_to_video(input_video=video_path, court_detector=court_detector, players_detector=detection_model,
                       ball_detector=ball_detector, strokes_predictions=predictions, skeleton_df=df_smooth,
                       statistics=statistics,
                       show_video=show_video, with_frame=1, output_folder=output_folder, output_file=output_file,
                       p1=player_1_strokes_indices, p2=player_2_strokes_indices, f_x=f2_x, f_y=f2_y)
+
     ball_detector.show_y_graph(detection_model.player_1_boxes, detection_model.player_2_boxes)
+
     print(f'Last frame distance player 1 : {last_frame_distance_p1} m')
     print(f'Last frame distance player 2 : {last_frame_distance_p2} m')
 
@@ -683,7 +698,7 @@ def video_process(video_path, show_video=False, include_video=True,
 
 def main():
     s = time.time()
-    result_json = video_process(video_path='/content/TennisProject/src/arnaldi-alcaraz-25fps.mp4', show_video=False, stickman=True, stickman_box=False, smoothing=True,
+    result_json = video_process(video_path='/content/TennisProject/src/zverev_long.mp4', show_video=False, stickman=True, stickman_box=False, smoothing=True,
                   court=True, top_view=True, bounce=True)
     print(f'Total computation time : {time.time() - s} seconds')
 
