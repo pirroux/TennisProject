@@ -415,8 +415,17 @@ def create_top_view(court_detector, detection_model, ball_detector, fps='30', vi
     tout=[]
     liste_bounce = bounce[0].tolist()
     print("888888888888888888888888888888")
-    print(bounce)
+    #print(bounce)
     print(liste_bounce)
+    # Initialiser une image noire de la même taille que les frames
+    croix = np.zeros_like(court)
+
+    # Définir une variable pour savoir si un rebond a été détecté
+    rebond_detecte = False
+
+    # Nombre de frames pendant lesquelles la croix doit être affichée après la détection de rebond
+    frames_affichage_croix = 0
+
     for feet_pos_1, feet_pos_2, ball_pos in zip(smoothed_1, smoothed_2, ball_position_top_view):
         frame = court.copy()
         frame = cv2.circle(frame, (int(feet_pos_1[0]), int(feet_pos_1[1])), 10, (255, 105, 180), 15)
@@ -432,6 +441,8 @@ def create_top_view(court_detector, detection_model, ball_detector, fps='30', vi
         out.write(frame)
         tout.append(i)
         i+=1
+
+
     print(tout)
     out.release()
     cv2.destroyAllWindows()
@@ -698,7 +709,7 @@ def video_process(video_path, show_video=False, include_video=True,
 
 def main():
     s = time.time()
-    result_json = video_process(video_path='/content/TennisProject/src/zverev_long.mp4', show_video=False, stickman=True, stickman_box=False, smoothing=True,
+    result_json = video_process(video_path='/content/TennisProject/src/arnaldi-alcaraz-2-25fps.mp4', show_video=False, stickman=True, stickman_box=False, smoothing=True,
                   court=True, top_view=True, bounce=True)
     print(f'Total computation time : {time.time() - s} seconds')
 
