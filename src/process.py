@@ -515,8 +515,8 @@ def video_process(video_path, show_video=False, include_video=True,
                       p1=player_1_strokes_indices, p2=player_2_strokes_indices, f_x=f2_x, f_y=f2_y)
     # print players & ball y coordinates vs frame #
     ball_detector.show_y_graph(detection_model.player_1_boxes, detection_model.player_2_boxes)
-    print(f'Last frame distance player 1 : {last_frame_distance_p1} m')
-    print(f'Last frame distance player 2 : {last_frame_distance_p2} m')
+    print(f'Last frame distance player 1 : {last_frame_distance_p1:.1f} m')
+    print(f'Last frame distance player 2 : {last_frame_distance_p2:.1f} m')
 
     stroke_counts = {}
     for stroke_type in prediction_list:
@@ -536,13 +536,11 @@ def video_process(video_path, show_video=False, include_video=True,
         'court_accuracy': round(court_accuracy, 1)
     }
 
-    print(dico)
     return dico
 
 def main(video_path):
     s = time.time()
-    result_json = video_process(video_path=video_path, show_video=False, stickman=True, stickman_box=False, smoothing=True,
-                  court=True, top_view=True)
+    result_json = video_process(video_path=video_path, show_video=False, stickman=True, stickman_box=False, smoothing=True, court=True, top_view=True)
     print(f'Total computation time : {time.time() - s} seconds')
     return result_json
 

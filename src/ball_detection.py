@@ -163,6 +163,27 @@ class BallDetector:
         plt.plot(range(len(player_1_y_values)), player_1_y_values, color='r', marker='o', linestyle='-', label='Player 1')
         plt.plot(range(len(player_2_y_values)), player_2_y_values, color='g', marker='o', linestyle='-', label='Player 2')
 
+        y = np.array(y_values, dtype=float)
+
+        # Initialize an array of NaNs for the second derivative
+        first_derivative = np.full(y.shape, np.nan)
+        second_derivative = np.full(y.shape, np.nan)
+
+        # Compute the first and second derivatives using central difference, skipping NaN values
+        for i in range(1, len(y) - 1):
+            if not np.isnan(y[i-1]) and not np.isnan(y[i]) and not np.isnan(y[i+1]):
+                second_derivative[i] = (y[i+1] - 2*y[i] + y[i-1])
+
+        for i in range(1, len(y)):
+            if not np.isnan(y[i-1]) and not np.isnan(y[i]):
+                first_derivative[i] = (y[i] - y[i-1])
+
+        for i in range(len(first_derivative)):
+            print(i, first_derivative[i])
+
+        for i in range(len(second_derivative)):
+            print(i, second_derivative[i])
+
         plt.xlabel('Frame Index')
         plt.ylabel('Y-Index Position')
         plt.title('Ball and Players Y-Index Positions Over Frames')
